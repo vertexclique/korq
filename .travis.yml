@@ -1,0 +1,22 @@
+language: rust
+sudo: false
+cache: cargo
+
+rust:
+  - 1.26.2
+  - stable
+  - beta
+  - nightly
+
+os:
+  - linux
+  - osx
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+script:
+  - cargo build -v
+  # Tests disabled because feature(ques_in_main) isn't ready
+  # - cargo test -v
