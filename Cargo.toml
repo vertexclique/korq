@@ -1,15 +1,14 @@
 [package]
 name = "korq"
-version = "0.1.0"
+version = "0.2.0"
 description = "Kubernetes Dynamic Log Tailing Utility"
 documentation = "https://docs.rs/korq"
 homepage = "https://vertexclique.github.io/korq"
 authors = ["Mahmut Bulut <vertexclique@gmail.com>"]
-exclude = ["doc/**", "assets/**"]
+exclude = ["doc/**", "assets/**", "docs/**"]
 keywords = ["kubernetes", "logging", "infrastructure", "cluster", "pod"]
 categories = ["development-tools", "command-line-utilities"]
 repository = "https://github.com/vertexclique/korq"
-edition = "2018"
 license = "MIT"
 readme = "README.md"
 
@@ -18,4 +17,9 @@ dirs = "1.0.4"
 backtrace = "0.3"
 carboxyl = "0.2.1"
 clap = "2.32.0"
-qube = "0.1.0"
+reqwest = "0.9.3"
+futures = "0.1.23"
+tokio = "0.1.11"
+colored = "1.6"
+rand = "0.5.5"
+qube = "0.2.0"

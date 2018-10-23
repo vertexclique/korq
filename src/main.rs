@@ -3,9 +3,13 @@ extern crate qube;
 extern crate backtrace;
 extern crate carboxyl;
 extern crate clap;
+extern crate tokio;
+extern crate futures;
+extern crate reqwest;
+extern crate rand;
+extern crate colored;
 
 use qube::clients::*;
-use qube::prelude::*;
 use qube::errors::*;
 use std::env;
 use std::{mem, thread, time};
@@ -15,22 +19,43 @@ use carboxyl::*;
 use clap::{Arg, App};
 
 
-mod poddata;
+mod core;
 
-use self::poddata::*;
+use core::poddata::*;
+use core::logtailer::*;
 
-fn push_pods(kube: Kubernetes, sink: Sink<PodData>) -> Result<i32> {
+fn upstream_generator(kube: Kubernetes, namespace: String, sink: Sink<PodData>) -> Result<i32> {
     let poll_int = time::Duration::from_millis(50);
+    let emit_int = time::Duration::from_millis(5);
+    const RUN_PHASE: &'static str = "Running";
 
     loop {
         if kube.healthy()? {
-            for pod in kube.pods().namespace("default").list(None)? {
+            for pod in kube.pods().namespace(&*namespace).list(None)? {
                 let name = pod.metadata.name.unwrap();
-                let poddata = PodData {
-                    name: Box::leak(name.into_boxed_str()),
-                    status: PodStatus::PodReachable
-                };
-                sink.send(poddata);
+                // println!("STATUS {:?}", pod.status.clone().unwrap().phase);
+                if let Some(pod_status) = pod.status {
+                    if let Some(phase) = pod_status.phase {
+                        if phase == RUN_PHASE {
+                            for c_status in pod_status.container_statuses.unwrap() {
+                                // println!("STATE {:?}", c_status.state.unwrap().running);
+                                if let Some(_running) = c_status.state.unwrap().running {
+                                    let pod_name = name.clone();
+                                    let container_name = c_status.name;
+
+                                    let poddata = PodData {
+                                        name: Box::leak(pod_name.into_boxed_str()),
+                                        container: Box::leak(container_name.into_boxed_str()),
+                                        status: PodStatus::PodReachable
+                                    };
+
+                                    thread::sleep(emit_int);
+                                    sink.send(poddata);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -38,14 +63,6 @@ fn push_pods(kube: Kubernetes, sink: Sink<PodData>) -> Result<i32> {
     }
 }
 
-fn launch_logger(kube: Kubernetes, namespace: String, pod: Arc<RwLock<PodData>>, sink: Sink<PodData>) {
-    let podread = pod.read().unwrap();
-    let podname = podread.name;
-    drop(podread);
-    let _res = kube.pods().namespace(&*namespace).logs().fetch(podname);
-    let poddata = PodData { name: podname, status: PodStatus::PodUnreachable };
-    sink.send(poddata)
-}
 
 fn register_client() -> Result<qube::Kubernetes> {
     // filename is set to $KUBECONFIG if the env var is available.
@@ -65,7 +82,7 @@ fn register_client() -> Result<qube::Kubernetes> {
 
 fn main() {
     let matches = App::new("K∅RQ")
-                          .version("0.1.0")
+                          .version("0.2.0")
                           .author("Mahmut Bulut <vertexclique@gmail.com>")
                           .about("Kubernetes Dynamic Log Tailing Utility")
                           .arg(Arg::with_name("namespace")
@@ -79,6 +96,11 @@ fn main() {
                                .required(true)
                                .help("Name parameter to filter for pods")
                                .takes_value(true))
+                          .arg(Arg::with_name("container")
+                               .short("c")
+                               .long("container")
+                               .help("Filter for container name in pods")
+                               .takes_value(true))
                           .get_matches();
 
     let filter = matches.value_of("filter").unwrap_or("");
@@ -86,10 +108,13 @@ fn main() {
     let matches = matches.clone();
     let namespace = matches.value_of("namespace").unwrap_or("default").to_owned();
 
+    let matches = matches.clone();
+    let cfilter = matches.value_of("container").unwrap_or("");
+
     let kube: Kubernetes = register_client()
         .expect("Client couldn't instantiated!");
 
-    let mut registry = Vec::<&'static str>::new();
+    let mut registry = Vec::<PodData>::new();
 
     if let Err(e) = kube.healthy() {
         panic!("Client authorization failure :: {:?}", e);
@@ -103,14 +128,15 @@ fn main() {
     // Shit code, use something feasible...
     let obs_kube = kube.clone();
     let obs_sink = sink.clone();
+    let obs_ns = namespace.clone();
 
-    let poller = thread::spawn(|| { push_pods(kube, sink) });
+    let poller = thread::spawn(|| { upstream_generator(kube, obs_ns, sink) });
 
     let mut events = stream.events().filter(|&p| {
-        p.name.contains(filter)
+        p.name.contains(filter) && p.container.contains(cfilter)
     });
 
-    let global_pod = Arc::new(RwLock::new(PodData{name: "", status: PodStatus::PodUnreachable}));
+    let global_pod = Arc::new(RwLock::new(PodDataImpl::new()));
 
     while let Some(event) = events.next() {
         let kb = obs_kube.clone();
@@ -119,23 +145,25 @@ fn main() {
 
         let watched_pod = global_pod.clone();
 
-        let podname = event.name;
         {
             let mut wpwriter = watched_pod.write().unwrap();
             mem::replace(&mut *wpwriter, event.clone());
         }
         let wpreader = watched_pod.clone();
 
+        // println!("EVENT {:?}", event);
+
         match event.status {
             PodStatus::PodReachable => {
-                if registry.iter().position(|x| *x == podname).is_none() == true {
-                    registry.push(podname);
+                if registry.iter().position(|x| *x.name == *event.name && *x.container == *event.container).is_none() == true {
+                    registry.push(event);
                     thread::spawn(|| { launch_logger(kb, ns, wpreader, si) });
                 }
             }
             PodStatus::PodUnreachable => {
-                let kname = podname.clone();
-                if let Some(index) = registry.iter().position(|x| *x == kname.to_owned()) {
+                let ec = event.clone();
+                // println!("EC {:?}", ec);
+                if let Some(index) = registry.iter().position(|x| *x.name == *ec.name && *x.container == *ec.container) {
                     registry.remove(index);
                 }
             }

@@ -3,18 +3,29 @@ sudo: false
 cache: cargo
 
 rust:
-  - beta
-  - nightly
+- 1.26.2
+- stable
+- beta
+- nightly
 
 os:
-  - linux
-  - osx
+- windows
+- linux
+- osx
 
 matrix:
   allow_failures:
-    - rust: nightly
+  - rust: nightly
 
 script:
-  - cargo build -v
-  # Tests disabled because feature(ques_in_main) isn't ready
-  # - cargo test -v
+- cargo build --release -v
+
+deploy:
+  provider: releases
+  api_key:
+    secure: A2+QTFFK97BXRPTn4fN97G1xieS7IIAB+iPJ4/cnl4uZAKCPbvsSnFVUCYl78/JUx3OKJt8P0u4mDUqmX3K9ez9v0w9+mZvft583eiF1AuPsDOaXhf+v6zieVXr+qNyV4AeITSS1zoVLWQe1aV6nL2E12K8kfAltMMKWWopZRTVPZj9k0eOd7nKq6q6m5Cgg8+Tdb+rVGtQr0O2mMhkiYheP8/rHAvD154xH1tPFGK7nMdzhnm6fKWbYI58NK/5YRde+Px2ir0zB/F8nbjyj5U+pz3VpaTBxf8W4iPGGAjtV00LbE+JQUuk3FCQBAaDSUKQDckZE/L2uso10Tld6aD9BXfcBXlMje4WZTw36jbQa94tMrMtGtL8jvMNg5batO5KHQ7hyPK+kxGQAehGem16Sn/9E0c084lq9/3l4DyQpoSURJyNyUXLfyU4OIdQW/MclYEgX7hqPg3crwe5Fg4EiKRxy3DjaBLDS8ntHcNABpYnjLxES+V7ICrZXJQkEhn9mlTLW2N0qM1jzVbJUIn7o4pjlkOutnZKKrIH8NUrQ8Y73tp/j71ztx+THxrziYUf1R3jK/dskQrNJN1VxLdtsbVhXTP7MaHy+3wZjTFv4COwqLUOC/xTnrA9PEmKUVG/ZT3f/GGjvwUWJ9jBKAYHBr5nPH1A1BPKgw0uEyHM=
+  file: target/release/korq
+  on:
+    repo: vertexclique/korq
+    tags: true
+  skip_cleanup: true

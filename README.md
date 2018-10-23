@@ -18,6 +18,8 @@ Start by installing K∅RQ with Cargo.
 cargo install korq
 ```
 
+Or download it from the release tag!
+
 Check that cargo bin path is in your PATH.
 
 K∅RQ first looks for Kubernetes configuration file after that it will look for either CA certificates, cluster side certificates or an auth provider token for client initialization. Before that you might want to set your environment variable for configuration file which can be done via environment variable. By default it is using: `$HOME/.kube/config`.
@@ -38,10 +40,20 @@ Then you can invoke K∅RQ with:
 korq --namespace <NAMESPACE> --filter <FILTER>
 ```
 
-In short:
+If you want to tail a specific container in pod group you can use:
+
+```bash
+korq --namespace <NAMESPACE> --filter <FILTER> --container <CONTAINER_FILTER>
+```
+
+Both commands in short:
 
 ```bash
 korq -n <NAMESPACE> -f <FILTER>
+```
+
+```bash
+korq -n <NAMESPACE> -f <FILTER> -c <CONTAINER_FILTER>
 ```
 
 Enjoy the ride!
