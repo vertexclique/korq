@@ -1,31 +1,93 @@
 language: rust
-sudo: false
 cache: cargo
 
-rust:
-- 1.26.2
-- stable
-- beta
-- nightly
-
-os:
-- windows
-- linux
-- osx
+env:
+  global:
+    - PROJECT_NAME=korq
 
 matrix:
+  include:
+    # Nightly channel
+    - os: osx
+      rust: nightly
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: nightly
+      env: TARGET=x86_64-unknown-linux-gnu
+    # Beta channel
+    - os: osx
+      rust: beta
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: beta
+      env: TARGET=x86_64-unknown-linux-gnu
+    # Stable channel
+    - os: osx
+      rust: stable
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-gnu
+    # Minimum Rust supported channel
+    - os: osx
+      rust: 1.28.0
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: 1.28.0
+      env: TARGET=x86_64-unknown-linux-gnu
   allow_failures:
-  - rust: nightly
+    # Nightly channel may fail.
+    - os: osx
+      rust: nightly
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: nightly
+      env: TARGET=x86_64-unknown-linux-gnu
+
+
+before_install:
+  - export PATH="$PATH:$HOME/.cargo/bin"
+
+install:
+  - bash ci/install.sh
 
 script:
-- cargo build --release -v
+  - bash ci/script.sh
+
+before_deploy:
+  - bash ci/before_deploy.sh
 
 deploy:
   provider: releases
+  # TODO Regenerate this api_key for your project, this one won't work for you. Here's how:
+  # - Go to 'https://github.com/settings/tokens/new' and generate a Token with only the
+  # `public_repo` scope enabled
+  # - Call `travis encrypt $github_token` where $github_token is the token you got in the previous
+  # step and `travis` is the official Travis CI gem (see https://rubygems.org/gems/travis/)
+  # - Enter the "encrypted value" below
   api_key:
     secure: A2+QTFFK97BXRPTn4fN97G1xieS7IIAB+iPJ4/cnl4uZAKCPbvsSnFVUCYl78/JUx3OKJt8P0u4mDUqmX3K9ez9v0w9+mZvft583eiF1AuPsDOaXhf+v6zieVXr+qNyV4AeITSS1zoVLWQe1aV6nL2E12K8kfAltMMKWWopZRTVPZj9k0eOd7nKq6q6m5Cgg8+Tdb+rVGtQr0O2mMhkiYheP8/rHAvD154xH1tPFGK7nMdzhnm6fKWbYI58NK/5YRde+Px2ir0zB/F8nbjyj5U+pz3VpaTBxf8W4iPGGAjtV00LbE+JQUuk3FCQBAaDSUKQDckZE/L2uso10Tld6aD9BXfcBXlMje4WZTw36jbQa94tMrMtGtL8jvMNg5batO5KHQ7hyPK+kxGQAehGem16Sn/9E0c084lq9/3l4DyQpoSURJyNyUXLfyU4OIdQW/MclYEgX7hqPg3crwe5Fg4EiKRxy3DjaBLDS8ntHcNABpYnjLxES+V7ICrZXJQkEhn9mlTLW2N0qM1jzVbJUIn7o4pjlkOutnZKKrIH8NUrQ8Y73tp/j71ztx+THxrziYUf1R3jK/dskQrNJN1VxLdtsbVhXTP7MaHy+3wZjTFv4COwqLUOC/xTnrA9PEmKUVG/ZT3f/GGjvwUWJ9jBKAYHBr5nPH1A1BPKgw0uEyHM=
-  file: target/release/korq
-  on:
-    repo: vertexclique/korq
-    tags: true
+  file_glob: true
+  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.*
+  # don't delete the artifacts from previous phases
   skip_cleanup: true
+  # deploy when a new tag is pushed
+  on:
+    # channel to use to produce the release artifacts
+    # NOTE make sure you only release *once* per target
+    # TODO you may want to pick a different channel
+    repo: vertexclique/korq
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+
+branches:
+  only:
+    # Pushes and PR to the master branch
+    - master
+    # IMPORTANT Ruby regex to match tags. Required, or travis won't trigger deploys when a new tag
+    # is pushed. This regex matches semantic versions like v1.2.3-rc4+2016.02.22
+    - /^v\d+\.\d+\.\d+.*$/
+
+notifications:
+  email:
+    on_success: never
