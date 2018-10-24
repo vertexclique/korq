@@ -10,7 +10,7 @@
 
 K∅RQ is used for tailing pod logs concurrently and following groups at once. It was basically a need to follow logs during deployment and see how instances behave during and after deployment. This is the main motive behind K∅RQ.
 
-## Usage
+## Installation
 
 Start by installing K∅RQ with Cargo.
 
@@ -28,6 +28,8 @@ K∅RQ first looks for Kubernetes configuration file after that it will look for
 $ KUBECONFIG=$HOME/somepath/admin.conf
 ```
 
+## Usage
+
 After these steps you need to set your default project if you are going to use token. Access Token must be valid during execution. OFC. yep!
 
 By default K∅RQ's namespace is `default`. You can pass this argument as a parameter to the command with `--namespace` flag.
@@ -37,23 +39,23 @@ For filtering the pods by name you can pass pods' base name to the `--filter` pa
 Then you can invoke K∅RQ with:
 
 ```bash
-korq --namespace <NAMESPACE> --filter <FILTER>
+korq --context <CONTEXT> --namespace <NAMESPACE> --filter <FILTER>
 ```
 
 If you want to tail a specific container in pod group you can use:
 
 ```bash
-korq --namespace <NAMESPACE> --filter <FILTER> --container <CONTAINER_FILTER>
+korq --context <CONTEXT> --namespace <NAMESPACE> --filter <FILTER> --container <CONTAINER_FILTER>
 ```
 
-Both commands in short:
+**Both commands in short:**
 
 ```bash
-korq -n <NAMESPACE> -f <FILTER>
+korq -k <CONTEXT> -n <NAMESPACE> -f <FILTER>
 ```
 
 ```bash
-korq -n <NAMESPACE> -f <FILTER> -c <CONTAINER_FILTER>
+korq -k <CONTEXT> -n <NAMESPACE> -f <FILTER> -c <CONTAINER_FILTER>
 ```
 
-Enjoy the ride!
+**Enjoy the ride!**

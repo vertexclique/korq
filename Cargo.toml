@@ -1,6 +1,6 @@
 [package]
 name = "korq"
-version = "0.3.0"
+version = "0.4.0"
 description = "Kubernetes Dynamic Log Tailing Utility"
 documentation = "https://docs.rs/korq"
 homepage = "https://vertexclique.github.io/korq"
@@ -23,4 +23,4 @@ openssl = "0.10.15"
 tokio = "0.1.11"
 colored = "1.6"
 rand = "0.5.5"
-qube = "0.3.0"
+qube = "0.4.0"

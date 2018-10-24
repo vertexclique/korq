@@ -64,7 +64,7 @@ fn upstream_generator(kube: Kubernetes, namespace: String, sink: Sink<PodData>) 
 }
 
 
-fn register_client() -> Result<qube::Kubernetes> {
+fn register_client(context: &str) -> Result<qube::Kubernetes> {
     // filename is set to $KUBECONFIG if the env var is available.
     let filename = env::var("KUBECONFIG").ok();
     let empty_buf = PathBuf::new();
@@ -76,15 +76,25 @@ fn register_client() -> Result<qube::Kubernetes> {
         .map(String::as_str)
         .and_then(|s| if s.is_empty() { None } else { Some(s) })
         .unwrap_or(default_config);
-    Ok(Kubernetes::load_conf(filename)?)
+
+    if context == "default" {
+        Ok(Kubernetes::load_conf(filename)?)
+    } else {
+        Ok(Kubernetes::load_conf_with_ctx(filename, context)?)
+    }
 }
 
 
 fn main() {
     let matches = App::new("K∅RQ")
-                          .version("0.2.0")
+                          .version("0.4.0")
                           .author("Mahmut Bulut <vertexclique@gmail.com>")
                           .about("Kubernetes Dynamic Log Tailing Utility")
+                          .arg(Arg::with_name("context")
+                               .short("k")
+                               .long("context")
+                               .help("Kubernetes context for access. By default it is using your `current-context` in kubernetes configuration.")
+                               .takes_value(true))
                           .arg(Arg::with_name("namespace")
                                .short("n")
                                .long("namespace")
@@ -106,12 +116,17 @@ fn main() {
     let filter = matches.value_of("filter").unwrap_or("");
 
     let matches = matches.clone();
+    let context = matches.value_of("context").unwrap_or("default");
+
+    let matches = matches.clone();
     let namespace = matches.value_of("namespace").unwrap_or("default").to_owned();
 
     let matches = matches.clone();
     let cfilter = matches.value_of("container").unwrap_or("");
 
-    let kube: Kubernetes = register_client()
+
+
+    let kube: Kubernetes = register_client(context)
         .expect("Client couldn't instantiated!");
 
     let mut registry = Vec::<PodData>::new();
